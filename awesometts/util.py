@@ -1,11 +1,16 @@
 # -*- coding: utf-8 -*-
 
-import os, sys, re, subprocess
+import os, sys, re, subprocess, hashlib
 from anki.utils import stripHTML
 from urllib import quote_plus
 import awesometts.config as config
 
 file_max_length = 255 # Max filename length for Unix
+
+def string_to_md5(content):
+    md5 = hashlib.md5()
+    md5.update(content)
+    return md5.hexdigest()
 
 def generateFileName(text, service, winencode='iso-8859-1', extention=".mp3"):
 	if config.quote_mp3: #re.sub removes \/:*?"<>|[]. from the file name
