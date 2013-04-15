@@ -114,16 +114,20 @@ def recordGoogleTTS(form, text):
 
 def TTS_record_old(text, language):
 	text = re.sub("\[sound:.*?\]", "", stripHTML(text.replace("\n", "")).encode('utf-8'))
-	address = TTS_ADDRESS+'?tl='+language+'&q='+ quote_plus(text)
+	url = TTS_ADDRESS+'?tl='+language+'&q="'+ text + '"'
+	request = urllib2.Request(url)
+	request.add_header('User-agent', 'Mozilla/5.0') 
+	opener = urllib2.build_opener()
 	
-	file = util.generateFileName(text, 'g', slanguages[get_language_id(language)][2])
-	if subprocess.mswindows:
-		subprocess.Popen(['mplayer.exe', '-ao', 'win32', '-slave', '-user-agent', "'Mozilla/5.0'", address, '-dumpstream', '-dumpfile', file], startupinfo=util.si, stdin=PIPE, stdout=PIPE, stderr=STDOUT).wait()
-		if not config.quote_mp3:
-			return file.decode(slanguages[get_language_id(language)][2])
-	else:
-		subprocess.Popen(['mplayer', '-slave', '-user-agent', "'Mozilla/5.0'", address, '-dumpstream', '-dumpfile', file], stdin=PIPE, stdout=PIPE, stderr=STDOUT).wait()
-	return file.decode('utf-8')
+	md5sum = util.string_to_md5(text)
+	file = md5sum + '.mp3'
+	if not (os.path.isfile(file)):
+		# File doesn't exist yet
+		f = open(file, "wb")
+		f.write(opener.open(request).read())
+		f.close()
+		
+	return file
 
 def filegenerator_layout(form):
 	global DefaultGoogleVoice
