@@ -9,9 +9,6 @@ import awesometts.config as config
 file_max_length = 255 # Max filename length for Unix
 
 def string_to_md5(content):
-    """Calculate the md5 hash of a string.
- 
-    This 'string' can be the binary content of a file too."""
     md5 = hashlib.md5()
     md5.update(content)
     return md5.hexdigest()
