@@ -5,7 +5,7 @@
 # License: GNU GPL, version 3 or later; http://www.gnu.org/copyleft/gpl.html
 #
 #   AwesomeTTS plugin for Anki 2.0
-version = '1.0 Beta 10'
+version = '1.0 Beta 11'
 #
 #
 #   Instrutions on the website:
@@ -23,6 +23,7 @@ from PyQt4.QtCore import *
 import awesometts.config as config
 
 import os, subprocess, re, sys, urllib, imp, types, time
+from random import uniform
 from aqt import mw, utils
 from anki import sound
 from anki.sound import playFromText
@@ -188,22 +189,28 @@ dstField = -1
 
 
 #take a break, so we don't fall in Google's blacklist. Code contributed by Dusan Arsenijevic
-def take_a_break(ndone, ntotal):      
-	t = 500;
-	while True:
-		mw.progress.update(label="Generated %s of %s, \n sleeping for %s seconds...." % (ndone+1, ntotal, t))
-		time.sleep(1)
-		t = t-1
-		if t==0: break
+# def take_a_break(ndone, ntotal):      
+	# t = 500;
+	# while True:
+		# mw.progress.update(label="Generated %s of %s, \n sleeping for %s seconds...." % (ndone+1, ntotal, t))
+		# time.sleep(1)
+		# t = t-1
+		# if t==0: break
 
 def generate_audio_files(factIds, frm, service, srcField_name, dstField_name):
 	returnval = {'fieldname_error': 0}
 	nelements = len(factIds)
-	batch = 900
+	batch = 500
+	errorStreak = 0
 	
 	for c, id in enumerate(factIds):
-		if service == 'g' and (c+1)%batch == 0: # GoogleTTS has to take a break once in a while
-			take_a_break(c, nelements)
+		# if service == 'g':
+		# Add random delay between requests
+			# time.sleep(uniform(0.1, 4.0))
+			# In Google.py instead
+			
+		# if service == 'g' and (c+1)%batch == 0: # GoogleTTS has to take a break once in a while
+			# take_a_break(c, nelements)
 		note = mw.col.getNote(id)
 		
 		if not (srcField_name in note.keys() and dstField_name in note.keys()):
@@ -218,15 +225,31 @@ def generate_audio_files(factIds, frm, service, srcField_name, dstField_name):
 			continue
 		
 		filename = TTS_service[service]['record'](frm, note[srcField_name])
-		
-		if frm.radioOverwrite.isChecked():
-			if frm.checkBoxSndTag.isChecked():
-				note[dstField_name] = '[sound:'+ filename +']'
+		if filename == 'ERROR':
+			# Blocked from Google or no internet
+			if errorStreak >= 3:
+				returnval['fieldname_error'] += (nelements - (c+1))
+				break
+				
+			returnval['fieldname_error'] += 1
+			errorStreak += 1
+			
+		elif filename:
+			if frm.radioOverwrite.isChecked():
+				if frm.checkBoxSndTag.isChecked():
+					note[dstField_name] = '[sound:'+ filename +']'
+				else:
+					note[dstField_name] = filename
 			else:
-				note[dstField_name] = filename
+				note[dstField_name] += ' [sound:'+ filename +']'
+				
+			note.flush()
+			
+			errorStreak = 0
+			
 		else:
-			note[dstField_name] += ' [sound:'+ filename +']'
-		note.flush()
+			#file doesn't exist, so something went wrong
+			returnval['fieldname_error'] += 1
 		
 	return returnval
 
@@ -411,4 +434,3 @@ def ATTS_OnAnswer(self):
 Reviewer._keyHandler = wrap(Reviewer._keyHandler, newKeyHandler, "before")
 Reviewer._showQuestion = wrap(Reviewer._showQuestion, ATTS_OnQuestion, "after")
 Reviewer._showAnswer  = wrap(Reviewer._showAnswer, ATTS_OnAnswer, "after")
-
